@@ -1,0 +1,23 @@
+{
+  "name": "Caltrack",
+  "short_name": "Caltrack",
+  "description": "A private calorie journal built around barcode scanning.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e4f1e6",
+  "theme_color": "#e4f1e6",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

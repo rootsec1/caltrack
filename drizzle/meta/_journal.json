@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1781726154590,
+      "tag": "0000_clever_punisher",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1781726539230,
+      "tag": "0001_salty_rockslide",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781729029771,
+      "tag": "0002_huge_kylun",
+      "breakpoints": true
+    }
+  ]
+}
