@@ -16,11 +16,11 @@ Caltrack keeps the input model intentionally small: barcode scan only. If Open F
 ## Local Development
 
 ```bash
-npm install
+bun install
 cp .env.example .env.local
 openssl rand -base64 32
-npm run db:migrate
-npm run dev
+bun run db:migrate
+bun dev
 ```
 
 Set the generated secret as `BETTER_AUTH_SECRET` in `.env.local`.
@@ -32,14 +32,14 @@ Open [http://localhost:3000](http://localhost:3000).
 Local development uses a libSQL-compatible SQLite file at `.data/caltrack.db`.
 
 ```bash
-npm run db:generate
-npm run db:migrate
+bun run db:generate
+bun run db:migrate
 ```
 
 If you already have cached barcode products or food logs without images, run:
 
 ```bash
-npm run db:backfill-images
+bun run db:backfill-images
 ```
 
 ## Environment
@@ -78,12 +78,12 @@ The intended low-cost deployment target is Vercel plus Turso:
 ## Commands
 
 ```bash
-npm run lint
-npm test
-npm run build
-npm run db:generate
-npm run db:migrate
-npm run db:backfill-images
+bun run lint
+bun run test
+bun run build
+bun run db:generate
+bun run db:migrate
+bun run db:backfill-images
 ```
 
 ## License
