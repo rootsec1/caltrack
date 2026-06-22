@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const foodSourceSchema = z.enum(["barcode"]);
+export const foodSourceSchema = z.enum(["barcode", "manual"]);
 
 export const normalizedFoodSchema = z.object({
   itemName: z.string().min(1),

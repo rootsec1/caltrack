@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeOpenFoodFactsProduct,
+  normalizedFoodSchema,
   summarizeFoodLogs,
 } from "./food";
 
@@ -74,5 +75,28 @@ describe("summarizeFoodLogs", () => {
         },
       ]),
     ).toEqual({ calories: 300, protein: 15, carbs: 40, fat: 10 });
+  });
+});
+
+describe("normalizedFoodSchema", () => {
+  it("accepts manual entries as reviewable food", () => {
+    expect(
+      normalizedFoodSchema.parse({
+        itemName: "Chicken burrito bowl",
+        servingQuantity: 1,
+        servingUnit: "bowl",
+        calories: 620,
+        protein: 36,
+        carbs: 68,
+        fat: 22,
+        source: "manual",
+        confidence: null,
+        assumptions: ["Entered from a nutrition label."],
+      }),
+    ).toMatchObject({
+      itemName: "Chicken burrito bowl",
+      source: "manual",
+      calories: 620,
+    });
   });
 });

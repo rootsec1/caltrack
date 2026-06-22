@@ -94,7 +94,7 @@ export const foodLogs = sqliteTable(
     carbs: real("carbs").notNull().default(0),
     fat: real("fat").notNull().default(0),
     note: text("note"),
-    source: text("source", { enum: ["barcode"] }).notNull(),
+    source: text("source", { enum: ["barcode", "manual"] }).notNull(),
     confidence: real("confidence"),
     assumptions: text("assumptions"),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),

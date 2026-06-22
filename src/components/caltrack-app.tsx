@@ -15,7 +15,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 
-type Source = "barcode";
+type Source = "barcode" | "manual";
 
 type ReviewFood = {
   itemName: string;
@@ -117,6 +117,25 @@ function blankScannedFood(barcode: string): ReviewFood {
     source: "barcode",
     confidence: null,
     assumptions: ["No product match was found for this barcode. Fill the nutrition details."],
+    note: null,
+  };
+}
+
+function blankManualFood(): ReviewFood {
+  return {
+    itemName: "",
+    brandName: null,
+    barcode: null,
+    imageUrl: null,
+    servingQuantity: 1,
+    servingUnit: "serving",
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    source: "manual",
+    confidence: null,
+    assumptions: ["No barcode was available. Fill the nutrition details manually."],
     note: null,
   };
 }
@@ -839,6 +858,34 @@ function ScanView({
             </div>
           ) : null}
         </div>
+      </div>
+      <div
+        className="motion-stagger mt-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-4"
+        style={staggerStyle(1)}
+      >
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+            <Utensils className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold">No barcode available?</h2>
+            <p className="mt-1 text-sm leading-5 text-[var(--muted)]">
+              Enter the nutrition label manually in the same review sheet.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            controlsRef.current?.stop();
+            foundRef.current = true;
+            onReview(blankManualFood());
+          }}
+          className="pressable mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--foreground)] px-4 text-sm font-semibold text-[var(--surface)] disabled:opacity-60"
+        >
+          <Utensils className="h-4 w-4" />
+          Enter manually
+        </button>
       </div>
     </div>
   );

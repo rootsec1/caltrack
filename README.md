@@ -20,9 +20,9 @@
   <img src="./public/screenshots/mobile-dashboard.jpg" width="330" alt="Caltrack mobile dashboard with today consumed calories, macro tiles, weekly history, timeline, and scan button">
 </p>
 
-Caltrack is a mobile-first Next.js PWA for private food logging. Scan a packaged item, fetch nutrition from Open Food Facts, confirm the label, and save it to a flat daily timeline. If a barcode is unknown, Caltrack opens the same review sheet with blank editable fields so the user can fill the nutrition label manually.
+Caltrack is a mobile-first Next.js PWA for private food logging. Scan a packaged item, fetch nutrition from Open Food Facts, confirm the label, and save it to a flat daily timeline. If there is no barcode, open the same review sheet with blank editable fields and fill the nutrition label manually.
 
-The input model is intentionally small: barcode scan only. No calorie goals, no meal buckets, no photo storage, no server management.
+The input model is intentionally small: barcode scan first, manual entry only when a barcode is not available. No calorie goals, no meal buckets, no photo storage, no server management.
 
 ## Highlights
 
