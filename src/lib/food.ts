@@ -26,6 +26,20 @@ export const foodLogInputSchema = normalizedFoodSchema.extend({
 export type NormalizedFood = z.infer<typeof normalizedFoodSchema>;
 export type FoodLogInput = z.infer<typeof foodLogInputSchema>;
 
+export const foodEstimateSchema = z.object({
+  itemName: z.string().trim().min(1),
+  servingQuantity: z.number().positive().default(1),
+  servingUnit: z.string().trim().min(1).default("serving"),
+  calories: z.number().nonnegative(),
+  protein: z.number().nonnegative().default(0),
+  carbs: z.number().nonnegative().default(0),
+  fat: z.number().nonnegative().default(0),
+  confidence: z.number().min(0).max(1).nullable().default(0.55),
+  assumptions: z.array(z.string()).default([]),
+});
+
+export type FoodEstimate = z.infer<typeof foodEstimateSchema>;
+
 type OpenFoodFactsProduct = {
   product_name?: string;
   product_name_en?: string;
@@ -114,6 +128,26 @@ export function normalizeOpenFoodFactsProduct(
     assumptions: hasServingData
       ? ["Nutrition values came from the product serving data."]
       : ["No serving nutrition was available, so values are based on 100 g."],
+  };
+}
+
+export function normalizeFoodEstimate(estimate: FoodEstimate): NormalizedFood {
+  return {
+    itemName: estimate.itemName,
+    brandName: null,
+    barcode: null,
+    imageUrl: null,
+    servingQuantity: round(estimate.servingQuantity),
+    servingUnit: estimate.servingUnit,
+    calories: round(estimate.calories, 0),
+    protein: round(estimate.protein),
+    carbs: round(estimate.carbs),
+    fat: round(estimate.fat),
+    source: "manual",
+    confidence: estimate.confidence,
+    assumptions: estimate.assumptions.length
+      ? estimate.assumptions
+      : ["Estimated from your description. Confirm the nutrition details before saving."],
   };
 }
 

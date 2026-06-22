@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  normalizeFoodEstimate,
   normalizeOpenFoodFactsProduct,
   normalizedFoodSchema,
   summarizeFoodLogs,
@@ -75,6 +76,56 @@ describe("summarizeFoodLogs", () => {
         },
       ]),
     ).toEqual({ calories: 300, protein: 15, carbs: 40, fat: 10 });
+  });
+});
+
+describe("normalizeFoodEstimate", () => {
+  it("turns a Gemini estimate into manual review food", () => {
+    expect(
+      normalizeFoodEstimate({
+        itemName: "Turkey sandwich",
+        servingQuantity: 1,
+        servingUnit: "sandwich",
+        calories: 432.4,
+        protein: 28.24,
+        carbs: 41.26,
+        fat: 14.91,
+        confidence: 0.62,
+        assumptions: ["Estimated from bread, turkey, cheese, and mayo."],
+      }),
+    ).toEqual({
+      itemName: "Turkey sandwich",
+      brandName: null,
+      barcode: null,
+      imageUrl: null,
+      servingQuantity: 1,
+      servingUnit: "sandwich",
+      calories: 432,
+      protein: 28.2,
+      carbs: 41.3,
+      fat: 14.9,
+      source: "manual",
+      confidence: 0.62,
+      assumptions: ["Estimated from bread, turkey, cheese, and mayo."],
+    });
+  });
+
+  it("adds a review reminder when assumptions are missing", () => {
+    expect(
+      normalizeFoodEstimate({
+        itemName: "Apple",
+        servingQuantity: 1,
+        servingUnit: "medium apple",
+        calories: 95,
+        protein: 0.5,
+        carbs: 25,
+        fat: 0.3,
+        confidence: null,
+        assumptions: [],
+      }).assumptions,
+    ).toEqual([
+      "Estimated from your description. Confirm the nutrition details before saving.",
+    ]);
   });
 });
 

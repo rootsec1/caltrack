@@ -7,10 +7,13 @@ import {
   Check,
   ChevronLeft,
   Flame,
+  ImagePlus,
   Loader2,
   LogOut,
   ScanBarcode,
+  Sparkles,
   Trash2,
+  X,
   Utensils,
 } from "lucide-react";
 import Link from "next/link";
@@ -691,6 +694,11 @@ function ScanView({
   const foundRef = useRef(false);
   const [status, setStatus] = useState("Hold the barcode flat inside the frame.");
   const [pending, setPending] = useState(false);
+  const [estimatePrompt, setEstimatePrompt] = useState("");
+  const [estimateImage, setEstimateImage] = useState<File | null>(null);
+  const [estimatePreview, setEstimatePreview] = useState<string | null>(null);
+  const [estimatePending, setEstimatePending] = useState(false);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
 
   const lookupBarcode = useCallback(
     async (barcode: string) => {
@@ -819,6 +827,50 @@ function ScanView({
     };
   }, [lookupBarcode]);
 
+  useEffect(() => {
+    return () => {
+      if (estimatePreview) URL.revokeObjectURL(estimatePreview);
+    };
+  }, [estimatePreview]);
+
+  function updateEstimateImage(file: File | null) {
+    setEstimateError(null);
+    setEstimateImage(file);
+    setEstimatePreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  async function estimateFood() {
+    if (!estimatePrompt.trim() && !estimateImage) {
+      setEstimateError("Add a short note or attach a food photo.");
+      return;
+    }
+
+    setEstimatePending(true);
+    setEstimateError(null);
+    controlsRef.current?.stop();
+    foundRef.current = true;
+
+    try {
+      const formData = new FormData();
+      formData.append("prompt", estimatePrompt.trim());
+      if (estimateImage) formData.append("image", estimateImage);
+      const { product } = await apiJson<{ product: ReviewFood }>(
+        "/api/food/estimate",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+      onReview(product);
+    } catch (error) {
+      setEstimateError(
+        error instanceof Error ? error.message : "Could not estimate this food.",
+      );
+    } finally {
+      setEstimatePending(false);
+    }
+  }
+
   return (
     <div className="motion-view flex flex-1 flex-col">
       <BackButton onClick={onBack} label="Scanner" />
@@ -841,26 +893,96 @@ function ScanView({
       >
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[var(--accent-strong)]">
-            <Utensils className="h-5 w-5" />
+            <Sparkles className="h-5 w-5" />
           </div>
           <div>
             <h2 className="text-sm font-semibold">No barcode available?</h2>
             <p className="mt-1 text-sm leading-5 text-[var(--muted)]">
-              Enter the nutrition label manually in the same review sheet.
+              Describe the food, optionally add a photo, and review the estimate before saving.
             </p>
           </div>
         </div>
+        <label className="mt-4 block">
+          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+            Food note
+          </span>
+          <textarea
+            value={estimatePrompt}
+            onChange={(event) => setEstimatePrompt(event.target.value)}
+            placeholder="Example: turkey sandwich on wheat with cheese and mayo"
+            className="mt-2 min-h-24 w-full resize-none rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-3 text-sm leading-5 outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[oklch(58%_0.018_126)] focus:border-[var(--accent)] focus:shadow-[0_0_0_4px_oklch(45%_0.085_145_/_0.12)]"
+          />
+        </label>
+        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <label className="pressable flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[8px] border border-dashed border-[var(--line)] bg-[oklch(97%_0.012_145)] px-3 text-sm font-semibold text-[var(--foreground)]">
+            <ImagePlus className="h-4 w-4" />
+            {estimateImage ? "Change photo" : "Add photo"}
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(event) => {
+                updateEstimateImage(event.target.files?.[0] ?? null);
+              }}
+            />
+          </label>
+          {estimatePreview ? (
+            <div className="relative h-20 overflow-hidden rounded-[8px] border border-[var(--line)] bg-[var(--surface-strong)] sm:w-24">
+              <div
+                aria-label="Selected food photo preview"
+                className="h-full w-full bg-cover bg-center"
+                style={{ backgroundImage: `url(${estimatePreview})` }}
+              />
+              <button
+                type="button"
+                aria-label="Remove photo"
+                onClick={() => updateEstimateImage(null)}
+                className="icon-button absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-[8px] bg-[oklch(98%_0.01_86_/_0.92)]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : null}
+        </div>
+        {estimatePending ? (
+          <div className="motion-pop mt-3 rounded-[8px] bg-[oklch(96%_0.018_86)] p-3">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Estimating nutrition
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+              <span>Reading note</span>
+              <span>Checking image</span>
+              <span>Preparing review</span>
+            </div>
+          </div>
+        ) : null}
+        {estimateError ? (
+          <p className="motion-error mt-3 text-sm text-[var(--danger)]">
+            {estimateError}
+          </p>
+        ) : null}
         <button
           type="button"
+          disabled={estimatePending}
+          onClick={() => void estimateFood()}
+          className="pressable mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--foreground)] px-4 text-sm font-semibold text-[var(--surface)] disabled:opacity-60"
+        >
+          {estimatePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          Estimate and review
+        </button>
+        <button
+          type="button"
+          disabled={estimatePending}
           onClick={() => {
             controlsRef.current?.stop();
             foundRef.current = true;
             onReview(blankManualFood());
           }}
-          className="pressable mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--foreground)] px-4 text-sm font-semibold text-[var(--surface)] disabled:opacity-60"
+          className="pressable mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-[8px] border border-[var(--line)] px-4 text-sm font-semibold text-[var(--foreground)] disabled:opacity-60"
         >
           <Utensils className="h-4 w-4" />
-          Enter manually
+          Enter without estimate
         </button>
       </div>
     </div>

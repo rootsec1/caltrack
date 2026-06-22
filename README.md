@@ -68,6 +68,8 @@ DATABASE_URL=file:./.data/caltrack.db
 BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_SECRET=replace-with-openssl-rand-base64-32
 OPENFOODFACTS_USER_AGENT=Caltrack/1.0 (you@example.com)
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 Required on Vercel with Turso:
@@ -78,9 +80,12 @@ TURSO_AUTH_TOKEN=
 BETTER_AUTH_SECRET=
 NEXT_PUBLIC_BETTER_AUTH_URL=https://your-domain.example
 OPENFOODFACTS_USER_AGENT=Caltrack/1.0 (you@example.com)
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 Use a real contact in `OPENFOODFACTS_USER_AGENT`; Open Food Facts asks API clients to identify themselves clearly.
+`GEMINI_API_KEY` is only used server-side for no-barcode nutrition estimates.
 
 ## Database
 
