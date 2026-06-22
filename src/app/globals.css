@@ -312,6 +312,11 @@ a:focus-visible {
   z-index: 2;
 }
 
+body[data-caltrack-modal-open="true"] .site-signature {
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .site-signature__link {
   align-items: center;
   background:

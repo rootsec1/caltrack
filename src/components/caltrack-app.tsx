@@ -28,6 +28,13 @@ import {
   startOfLocalDay,
   summarizeNutrition,
 } from "@/lib/ledger";
+import {
+  nutritionPerServing,
+  roundNutritionValue,
+  scaleNutrition,
+  type NutritionField,
+  type NutritionValues,
+} from "@/lib/nutrition";
 
 type Source = "barcode" | "manual";
 
@@ -121,6 +128,15 @@ function blankManualFood(): ReviewFood {
   };
 }
 
+function nutritionValuesFromFood(food: ReviewFood): NutritionValues {
+  return {
+    calories: food.calories,
+    protein: food.protein,
+    carbs: food.carbs,
+    fat: food.fat,
+  };
+}
+
 async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -180,6 +196,18 @@ export function CaltrackApp() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [loadLogs]);
+
+  useEffect(() => {
+    if (reviewFood) {
+      document.body.dataset.caltrackModalOpen = "true";
+      return () => {
+        delete document.body.dataset.caltrackModalOpen;
+      };
+    }
+
+    delete document.body.dataset.caltrackModalOpen;
+    return undefined;
+  }, [reviewFood]);
 
   async function saveFood(food: ReviewFood) {
     const payload = {
@@ -1153,11 +1181,36 @@ function ReviewSheet({
   onSave: (food: ReviewFood) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<ReviewFood>(food);
+  const [perServingNutrition, setPerServingNutrition] = useState<NutritionValues>(() =>
+    nutritionPerServing(nutritionValuesFromFood(food), food.servingQuantity),
+  );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function update<K extends keyof ReviewFood>(key: K, value: ReviewFood[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateServingQuantity(value: number) {
+    const scaledNutrition = scaleNutrition(perServingNutrition, value);
+    setDraft((current) => ({
+      ...current,
+      servingQuantity: value,
+      ...scaledNutrition,
+    }));
+  }
+
+  function updateNutrition(field: NutritionField, value: number) {
+    const divisor =
+      draft.servingQuantity > 0 && Number.isFinite(draft.servingQuantity)
+        ? draft.servingQuantity
+        : 1;
+
+    setPerServingNutrition((current) => ({
+      ...current,
+      [field]: roundNutritionValue(field, value / divisor),
+    }));
+    setDraft((current) => ({ ...current, [field]: value }));
   }
 
   return (
@@ -1201,7 +1254,7 @@ function ReviewSheet({
           <NumberField
             label="Serving"
             value={draft.servingQuantity}
-            onChange={(value) => update("servingQuantity", value)}
+            onChange={updateServingQuantity}
           />
           <TextInput
             label="Unit"
@@ -1210,10 +1263,26 @@ function ReviewSheet({
           />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <NumberField label="Calories" value={draft.calories} onChange={(value) => update("calories", value)} />
-          <NumberField label="Protein g" value={draft.protein} onChange={(value) => update("protein", value)} />
-          <NumberField label="Carbs g" value={draft.carbs} onChange={(value) => update("carbs", value)} />
-          <NumberField label="Fat g" value={draft.fat} onChange={(value) => update("fat", value)} />
+          <NumberField
+            label="Calories"
+            value={draft.calories}
+            onChange={(value) => updateNutrition("calories", value)}
+          />
+          <NumberField
+            label="Protein g"
+            value={draft.protein}
+            onChange={(value) => updateNutrition("protein", value)}
+          />
+          <NumberField
+            label="Carbs g"
+            value={draft.carbs}
+            onChange={(value) => updateNutrition("carbs", value)}
+          />
+          <NumberField
+            label="Fat g"
+            value={draft.fat}
+            onChange={(value) => updateNutrition("fat", value)}
+          />
         </div>
         <label className="mt-3 block">
           <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
