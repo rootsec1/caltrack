@@ -9,13 +9,13 @@ export function SiteSignature() {
         target="_blank"
         rel="noopener noreferrer"
         title="Open abhishekmurthy.com"
-        aria-label="Built with love by Abhishek Murthy. Opens abhishekmurthy.com in a new tab."
+        aria-label="Built with love by rootsec1. Opens abhishekmurthy.com in a new tab."
       >
         <span>built with love</span>
         <span className="site-signature__heart" aria-hidden="true">
           ❤️
         </span>
-        <span className="site-signature__name">by abhishekmurthy</span>
+        <span className="site-signature__name">by rootsec1</span>
         <ExternalLink className="site-signature__icon" aria-hidden="true" />
       </a>
     </footer>
