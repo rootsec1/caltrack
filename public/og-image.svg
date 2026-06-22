@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Caltrack barcode-first calorie tracking app">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e5f4e8"/>
+      <stop offset="0.58" stop-color="#f7f7ef"/>
+      <stop offset="1" stop-color="#efd7cd"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#23331f" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="72" y="72" width="1056" height="486" rx="34" fill="#fbfbf4" stroke="#b9c8b6" stroke-width="2" filter="url(#shadow)"/>
+  <g transform="translate(116 124)">
+    <rect width="132" height="132" rx="30" fill="#11150d"/>
+    <path d="M47 35c-12 0-21 10-21 23v17c0 13 9 23 21 23h9" fill="none" stroke="#f7f7ef" stroke-width="9" stroke-linecap="round"/>
+    <path d="M51 38v57M63 38v57M75 38v57" fill="none" stroke="#f7f7ef" stroke-width="7" stroke-linecap="round"/>
+    <path d="M91 38v26c0 9 7 16 16 16h5v15" fill="none" stroke="#f7f7ef" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="96" cy="53" r="5" fill="#cfeecb"/>
+    <circle cx="112" cy="95" r="4" fill="#cfeecb"/>
+  </g>
+  <text x="286" y="180" fill="#11150d" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="76" font-weight="760" letter-spacing="-2.5">Caltrack</text>
+  <text x="286" y="234" fill="#52604f" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="25" font-weight="650" letter-spacing="3">BARCODE CALORIE &amp; MACRO TRACKER</text>
+  <text x="116" y="326" fill="#11150d" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="42" font-weight="710" letter-spacing="-1">Scan packaged food, estimate no-barcode meals,</text>
+  <text x="116" y="380" fill="#11150d" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="42" font-weight="710" letter-spacing="-1">and keep a clean nutrition ledger.</text>
+  <g transform="translate(116 430)">
+    <rect width="188" height="68" rx="14" fill="#dcefd8"/>
+    <text x="26" y="44" fill="#1f4b28" font-family="Inter, ui-sans-serif, system-ui" font-size="22" font-weight="720">Barcode scan</text>
+    <rect x="212" width="188" height="68" rx="14" fill="#efe4c8"/>
+    <text x="238" y="44" fill="#604d1e" font-family="Inter, ui-sans-serif, system-ui" font-size="22" font-weight="720">AI estimate</text>
+    <rect x="424" width="188" height="68" rx="14" fill="#e4e8f1"/>
+    <text x="450" y="44" fill="#30394d" font-family="Inter, ui-sans-serif, system-ui" font-size="22" font-weight="720">Weekly ledger</text>
+  </g>
+</svg>

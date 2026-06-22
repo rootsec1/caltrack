@@ -19,6 +19,7 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FoodAvatar } from "@/components/food-avatar";
+import { LogoMark } from "@/components/logo-mark";
 import { authClient } from "@/lib/auth-client";
 import {
   endOfLocalDay,
@@ -319,9 +320,7 @@ export function AuthPanel() {
       <div className="motion-shell relative mx-auto grid min-h-[calc(100vh-48px)] max-w-6xl overflow-hidden rounded-[8px] border border-[var(--line)] bg-[var(--surface)] shadow-[0_30px_90px_oklch(35%_0.03_80_/_0.16)] md:grid-cols-[1.05fr_0.95fr]">
         <section className="flex flex-col justify-between bg-[linear-gradient(145deg,oklch(91%_0.062_145),oklch(94%_0.028_168)_55%,oklch(87%_0.05_36))] p-7 md:p-10">
           <div className="motion-stagger flex items-center gap-3" style={staggerStyle(0)}>
-            <div className="grid h-10 w-10 place-items-center rounded-[8px] bg-[var(--foreground)] text-[var(--surface)]">
-              <Utensils className="h-5 w-5" />
-            </div>
+            <LogoMark className="h-10 w-10 text-[var(--foreground)]" />
             <span className="text-lg font-semibold tracking-tight">Caltrack</span>
           </div>
           <div className="motion-stagger max-w-xl py-16 md:py-24" style={staggerStyle(1)}>
@@ -440,9 +439,7 @@ function AppHeader({
     <header className="motion-stagger mb-8 flex items-center justify-between" style={staggerStyle(0)}>
       <div>
         <div className="flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-[8px] bg-[var(--foreground)] text-[var(--surface)]">
-            <Utensils className="h-4 w-4" />
-          </div>
+          <LogoMark className="h-9 w-9 text-[var(--foreground)]" />
           <span className="text-lg font-semibold tracking-tight">Caltrack</span>
         </div>
         <p className="mt-2 text-sm text-[var(--ink-soft)]">Signed in as {userName}</p>
