@@ -21,7 +21,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "mkdir -p .data && drizzle-kit migrate",
-    "db:backfill-images": "bun scripts/backfill-product-images.mjs"
+    "db:backfill-images": "bun scripts/backfill-product-images.mjs",
+    "data:prepare-india-cache": "bun scripts/prepare-india-product-cache.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.19",
