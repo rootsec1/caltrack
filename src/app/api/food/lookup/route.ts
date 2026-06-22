@@ -16,6 +16,34 @@ const requestSchema = z.object({
 });
 
 const openFoodFactsTimeoutMs = 8000;
+const notFoundProductName = "Unknown product";
+
+async function cacheMissingProduct(barcode: string) {
+  const fetchedAt = new Date();
+  const cacheEntry = {
+    productName: notFoundProductName,
+    brandName: null,
+    imageUrl: null,
+    servingQuantity: 1,
+    servingUnit: "serving",
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    confidence: null,
+    assumptions: null,
+    payload: JSON.stringify(null),
+    fetchedAt,
+  };
+
+  await db
+    .insert(productCache)
+    .values({ barcode, ...cacheEntry })
+    .onConflictDoUpdate({
+      target: productCache.barcode,
+      set: cacheEntry,
+    });
+}
 
 function productFromCache(cached: typeof productCache.$inferSelect) {
   if (cached.calories > 0) {
@@ -101,6 +129,7 @@ export async function POST(request: Request) {
   const normalized = normalizeOpenFoodFactsProduct(barcode, data.product ?? {});
 
   if (!normalized) {
+    await cacheMissingProduct(barcode);
     return Response.json({ product: null, cached: false });
   }
 

@@ -58,6 +58,9 @@ type FoodLog = ReviewFood & {
 type View = "home" | "scan";
 type MotionStyle = React.CSSProperties & Record<"--i", number>;
 type DetectedBarcode = { rawValue: string };
+const estimateFallbackPrompt =
+  "Tell Gemini what you are eating, then review the filled nutrition details.";
+
 type BarcodeDetectorConstructor = new (options?: {
   formats?: string[];
 }) => {
@@ -138,6 +141,7 @@ export function CaltrackApp() {
   const [logs, setLogs] = useState<FoodLog[]>([]);
   const [rangeLogs, setRangeLogs] = useState<FoodLog[]>([]);
   const [view, setView] = useState<View>("home");
+  const [scanStartsWithEstimate, setScanStartsWithEstimate] = useState(false);
   const [reviewFood, setReviewFood] = useState<ReviewFood | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
@@ -191,8 +195,14 @@ export function CaltrackApp() {
     setRangeLogs((current) => [log, ...current]);
     setReviewFood(null);
     setView("home");
+    setScanStartsWithEstimate(false);
     setSavedNotice(true);
     window.setTimeout(() => setSavedNotice(false), 1800);
+  }
+
+  function openScan(startWithEstimate = false) {
+    setScanStartsWithEstimate(startWithEstimate);
+    setView("scan");
   }
 
   async function deleteLog(id: string) {
@@ -215,9 +225,9 @@ export function CaltrackApp() {
   return (
     <main className="motion-app-bg min-h-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       <div className="motion-shell relative mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 lg:grid-cols-[420px_1fr]">
-        <section className="relative min-h-screen border-[var(--line)] bg-[var(--surface)] lg:border-r">
+        <section className="relative mx-auto min-h-screen w-full max-w-[460px] min-w-0 overflow-hidden border-[var(--line)] bg-[var(--surface)] lg:mx-0 lg:max-w-none lg:border-r">
           <div className="absolute inset-x-0 top-0 h-56 bg-[linear-gradient(135deg,oklch(88%_0.06_145),oklch(93%_0.028_168)_58%,oklch(86%_0.045_36))]" />
-          <div className="relative flex min-h-screen flex-col px-5 pb-24 pt-5 sm:px-8">
+          <div className="relative flex min-h-screen flex-col px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 sm:px-7 lg:px-8">
             <AppHeader
               userName={session.data.user.name}
               onSignOut={() => {
@@ -231,13 +241,18 @@ export function CaltrackApp() {
                 isLoading={isLoadingLogs}
                 error={error}
                 onRefresh={loadLogs}
-                onScan={() => setView("scan")}
+                onScan={() => openScan(false)}
+                onEstimate={() => openScan(true)}
                 onDelete={deleteLog}
               />
             ) : null}
             {view === "scan" ? (
               <ScanView
-                onBack={() => setView("home")}
+                initialEstimateOpen={scanStartsWithEstimate}
+                onBack={() => {
+                  setView("home");
+                  setScanStartsWithEstimate(false);
+                }}
                 onReview={setReviewFood}
               />
             ) : null}
@@ -245,7 +260,9 @@ export function CaltrackApp() {
         </section>
         <DesktopJournal logs={rangeLogs} todayLogs={logs} />
       </div>
-      {view === "home" ? <ScanFab onClick={() => setView("scan")} /> : null}
+      {view === "home" && logs.length > 0 ? (
+        <ScanFab onClick={() => openScan(false)} />
+      ) : null}
       {savedNotice ? <SavedToast /> : null}
       {reviewFood ? (
         <ReviewSheet
@@ -463,6 +480,7 @@ function Dashboard({
   error,
   onRefresh,
   onScan,
+  onEstimate,
   onDelete,
 }: {
   logs: FoodLog[];
@@ -471,6 +489,7 @@ function Dashboard({
   error: string | null;
   onRefresh: () => Promise<void>;
   onScan: () => void;
+  onEstimate: () => void;
   onDelete: (id: string) => Promise<void>;
 }) {
   const totals = useMemo(() => summarizeNutrition(logs), [logs]);
@@ -565,7 +584,9 @@ function Dashboard({
             {error}
           </div>
         ) : null}
-        {logs.length === 0 && !isLoading ? <EmptyTimeline onScan={onScan} /> : null}
+        {logs.length === 0 && !isLoading ? (
+          <EmptyTimeline onScan={onScan} onEstimate={onEstimate} />
+        ) : null}
         <div className="space-y-2">
           {logs.map((log, index) => (
             <TimelineRow key={log.id} log={log} index={index} onDelete={onDelete} />
@@ -582,7 +603,7 @@ function ScanFab({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Scan barcode"
-      className="scan-fab pressable fixed bottom-6 right-5 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent-strong)] text-[var(--surface)] shadow-[0_18px_44px_oklch(22%_0.045_145_/_0.34)] sm:bottom-8 sm:right-8"
+      className="scan-fab pressable fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent-strong)] text-[var(--surface)] shadow-[0_18px_44px_oklch(22%_0.045_145_/_0.34)] sm:bottom-8 sm:right-8"
     >
       <ScanBarcode className="h-7 w-7" />
     </button>
@@ -615,24 +636,40 @@ function MacroTile({
   );
 }
 
-function EmptyTimeline({ onScan }: { onScan: () => void }) {
+function EmptyTimeline({
+  onScan,
+  onEstimate,
+}: {
+  onScan: () => void;
+  onEstimate: () => void;
+}) {
   return (
-    <div className="motion-card rounded-[8px] border border-dashed border-[var(--line)] bg-[oklch(98%_0.012_86)] p-6 text-center">
+    <div className="motion-card rounded-[8px] border border-dashed border-[var(--line)] bg-[oklch(98%_0.012_86)] p-4 text-center">
       <div className="motion-pop mx-auto grid h-12 w-12 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[var(--accent-strong)]">
         <Flame className="h-5 w-5" />
       </div>
       <h3 className="mt-4 text-lg font-semibold">Nothing logged today</h3>
       <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[var(--muted)]">
-        Scan a packaged item to start today&apos;s log.
+        Scan a package, or use an estimate when there is no barcode.
       </p>
-      <button
-        type="button"
-        onClick={onScan}
-        className="pressable mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-[8px] bg-[var(--foreground)] px-4 text-sm font-semibold text-[var(--surface)]"
-      >
-        <ScanBarcode className="h-4 w-4" />
-        Start scanning
-      </button>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onScan}
+          className="pressable flex h-12 items-center justify-center gap-2 rounded-[8px] bg-[var(--foreground)] px-3 text-sm font-semibold text-[var(--surface)]"
+        >
+          <ScanBarcode className="h-4 w-4" />
+          Scan
+        </button>
+        <button
+          type="button"
+          onClick={onEstimate}
+          className="pressable flex h-12 items-center justify-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--foreground)]"
+        >
+          <Sparkles className="h-4 w-4" />
+          No barcode
+        </button>
+      </div>
     </div>
   );
 }
@@ -679,9 +716,11 @@ function TimelineRow({
 }
 
 function ScanView({
+  initialEstimateOpen,
   onBack,
   onReview,
 }: {
+  initialEstimateOpen: boolean;
   onBack: () => void;
   onReview: (food: ReviewFood) => void;
 }) {
@@ -689,13 +728,52 @@ function ScanView({
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const lookupTimeoutRef = useRef<number | undefined>(undefined);
   const foundRef = useRef(false);
+  const estimatePanelRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState("Hold the barcode flat inside the frame.");
   const [pending, setPending] = useState(false);
+  const [estimateOpen, setEstimateOpen] = useState(initialEstimateOpen);
+  const [fallbackReason, setFallbackReason] = useState<string | null>(
+    initialEstimateOpen ? estimateFallbackPrompt : null,
+  );
+  const [unmatchedBarcode, setUnmatchedBarcode] = useState<string | null>(null);
   const [estimatePrompt, setEstimatePrompt] = useState("");
   const [estimateImage, setEstimateImage] = useState<File | null>(null);
   const [estimatePreview, setEstimatePreview] = useState<string | null>(null);
   const [estimatePending, setEstimatePending] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
+
+  const openEstimatePanel = useCallback(
+    (reason?: string, barcode?: string) => {
+      controlsRef.current?.stop();
+      if (lookupTimeoutRef.current) {
+        window.clearTimeout(lookupTimeoutRef.current);
+        lookupTimeoutRef.current = undefined;
+      }
+      foundRef.current = true;
+      setPending(false);
+      setEstimateOpen(true);
+      setFallbackReason(reason ?? estimateFallbackPrompt);
+      setUnmatchedBarcode(barcode ?? null);
+      if (reason) setStatus(reason);
+      window.requestAnimationFrame(() => {
+        estimatePanelRef.current?.scrollIntoView({
+          block: "nearest",
+          behavior: "smooth",
+        });
+      });
+    },
+    [],
+  );
+
+  const resetToScanner = useCallback(() => {
+    setEstimateOpen(false);
+    setFallbackReason(null);
+    setUnmatchedBarcode(null);
+    setEstimateError(null);
+    setPending(false);
+    foundRef.current = false;
+    setStatus("Hold the barcode flat inside the frame.");
+  }, []);
 
   const lookupBarcode = useCallback(
     async (barcode: string) => {
@@ -714,13 +792,18 @@ function ScanView({
         setPending(false);
         onReview(food);
       };
+      const finishWithEstimateFallback = (message: string) => {
+        if (finished) return;
+        finished = true;
+        openEstimatePanel(message, barcode);
+      };
 
       setPending(true);
       setStatus(`Found ${barcode}. Looking up nutrition.`);
       controlsRef.current?.stop();
       lookupTimeoutRef.current = window.setTimeout(() => {
         controller.abort();
-        finishLookup(blankScannedFood(barcode), "Lookup timed out. Fill in the label details.");
+        finishWithEstimateFallback("Lookup timed out. Use an estimate or type the label manually.");
       }, 10000);
 
       try {
@@ -730,7 +813,7 @@ function ScanView({
           body: JSON.stringify({ barcode }),
         });
         if (!product) {
-          finishLookup(blankScannedFood(barcode), "No product match found. Fill in the label details.");
+          finishWithEstimateFallback("No product match found. Use an estimate or type the label manually.");
           return;
         }
         finishLookup(product);
@@ -741,10 +824,10 @@ function ScanView({
             : error instanceof Error
               ? error.message
               : "Lookup failed. Fill in the details.";
-        finishLookup(blankScannedFood(barcode), message);
+        finishWithEstimateFallback(message);
       }
     },
-    [onReview],
+    [onReview, openEstimatePanel],
   );
 
   useEffect(() => {
@@ -775,6 +858,7 @@ function ScanView({
     }
 
     async function start() {
+      if (estimateOpen) return;
       if (!videoRef.current) return;
       try {
         const [{ BrowserMultiFormatOneDReader }, { BarcodeFormat, DecodeHintType }] =
@@ -822,7 +906,7 @@ function ScanView({
       if (lookupTimeoutRef.current) window.clearTimeout(lookupTimeoutRef.current);
       controlsRef.current?.stop();
     };
-  }, [lookupBarcode]);
+  }, [lookupBarcode, estimateOpen]);
 
   useEffect(() => {
     return () => {
@@ -837,6 +921,8 @@ function ScanView({
   }
 
   async function estimateFood() {
+    if (pending) return;
+
     if (!estimatePrompt.trim() && !estimateImage) {
       setEstimateError("Add a short note or attach a food photo.");
       return;
@@ -870,118 +956,175 @@ function ScanView({
 
   return (
     <div className="motion-view flex flex-1 flex-col">
-      <BackButton onClick={onBack} label="Scanner" />
-      <div className="motion-card relative mt-4 aspect-[3/4] overflow-hidden rounded-[8px] bg-[var(--foreground)]">
-        <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
-        <div className="scanner-frame absolute inset-x-6 top-1/2 h-36 -translate-y-1/2 rounded-[8px] border-2 border-[oklch(96%_0.02_90)]" />
-        <div className="scanner-status absolute bottom-4 left-4 right-4 rounded-[8px] bg-[oklch(98%_0.01_86_/_0.94)] p-4">
-          <p className="text-sm font-semibold">{status}</p>
-          {pending ? (
-            <div className="mt-3 flex items-center gap-2 text-xs text-[var(--muted)]">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Checking Open Food Facts
+      <BackButton onClick={onBack} label="Add food" />
+
+      {estimateOpen ? (
+        <div
+          ref={estimatePanelRef}
+          className="estimate-panel motion-card mt-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[0_18px_48px_oklch(28%_0.03_120_/_0.10)]"
+        >
+          <div className="flex items-start gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+              {estimatePending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Sparkles className="h-5 w-5" />
+              )}
             </div>
-          ) : null}
-        </div>
-      </div>
-      <div
-        className="motion-stagger mt-4 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-4"
-        style={staggerStyle(1)}
-      >
-        <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[var(--accent-strong)]">
-            <Sparkles className="h-5 w-5" />
+            <div>
+              <h2 className="text-base font-semibold tracking-normal">
+                Estimate from note or photo
+              </h2>
+              <p className="mt-1 text-sm leading-5 text-[var(--muted)]">
+                {fallbackReason}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-semibold">No barcode available?</h2>
-            <p className="mt-1 text-sm leading-5 text-[var(--muted)]">
-              Describe the food, optionally add a photo, and review the estimate before saving.
-            </p>
-          </div>
-        </div>
-        <label className="mt-4 block">
-          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
-            Food note
-          </span>
-          <textarea
-            value={estimatePrompt}
-            onChange={(event) => setEstimatePrompt(event.target.value)}
-            placeholder="Example: turkey sandwich on wheat with cheese and mayo"
-            className="mt-2 min-h-24 w-full resize-none rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-3 text-sm leading-5 outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[oklch(58%_0.018_126)] focus:border-[var(--accent)] focus:shadow-[0_0_0_4px_oklch(45%_0.085_145_/_0.12)]"
-          />
-        </label>
-        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
-          <label className="pressable flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[8px] border border-dashed border-[var(--line)] bg-[oklch(97%_0.012_145)] px-3 text-sm font-semibold text-[var(--foreground)]">
-            <ImagePlus className="h-4 w-4" />
-            {estimateImage ? "Change photo" : "Add photo"}
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(event) => {
-                updateEstimateImage(event.target.files?.[0] ?? null);
-              }}
+
+          <label className="mt-4 block">
+            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+              What are you eating?
+            </span>
+            <textarea
+              value={estimatePrompt}
+              onChange={(event) => setEstimatePrompt(event.target.value)}
+              placeholder="Example: paneer wrap with chutney, one serving"
+              className="mt-2 min-h-28 w-full resize-none rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-3 text-base leading-6 outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[oklch(58%_0.018_126)] focus:border-[var(--accent)] focus:shadow-[0_0_0_4px_oklch(45%_0.085_145_/_0.12)]"
             />
           </label>
-          {estimatePreview ? (
-            <div className="relative h-20 overflow-hidden rounded-[8px] border border-[var(--line)] bg-[var(--surface-strong)] sm:w-24">
-              <div
-                aria-label="Selected food photo preview"
-                className="h-full w-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${estimatePreview})` }}
+
+          <div className="mt-3 grid gap-3">
+            <label className="pressable flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-[8px] border border-dashed border-[var(--line)] bg-[oklch(97%_0.012_145)] px-3 text-sm font-semibold text-[var(--foreground)]">
+              <ImagePlus className="h-4 w-4" />
+              {estimateImage ? "Change photo" : "Add optional photo"}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(event) => {
+                  updateEstimateImage(event.target.files?.[0] ?? null);
+                }}
               />
-              <button
-                type="button"
-                aria-label="Remove photo"
-                onClick={() => updateEstimateImage(null)}
-                className="icon-button absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-[8px] bg-[oklch(98%_0.01_86_/_0.92)]"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+            </label>
+            {estimatePreview ? (
+              <div className="relative h-28 overflow-hidden rounded-[8px] border border-[var(--line)] bg-[var(--surface-strong)]">
+                <div
+                  aria-label="Selected food photo preview"
+                  className="h-full w-full bg-cover bg-center"
+                  style={{ backgroundImage: `url(${estimatePreview})` }}
+                />
+                <button
+                  type="button"
+                  aria-label="Remove photo"
+                  onClick={() => updateEstimateImage(null)}
+                  className="icon-button absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-[8px] bg-[oklch(98%_0.01_86_/_0.92)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          {estimatePending ? (
+            <div className="motion-pop mt-3 rounded-[8px] bg-[oklch(96%_0.018_86)] p-3">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Filling the review sheet
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+                <span className="estimate-step">Reading note</span>
+                <span className="estimate-step">Checking image</span>
+                <span className="estimate-step">Balancing macros</span>
+              </div>
             </div>
           ) : null}
-        </div>
-        {estimatePending ? (
-          <div className="motion-pop mt-3 rounded-[8px] bg-[oklch(96%_0.018_86)] p-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
+
+          {estimateError ? (
+            <p className="motion-error mt-3 text-sm text-[var(--danger)]">
+              {estimateError}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            disabled={estimatePending}
+            onClick={() => void estimateFood()}
+            className="pressable mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--foreground)] px-4 text-sm font-semibold text-[var(--surface)] disabled:opacity-60"
+          >
+            {estimatePending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-              Estimating nutrition
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
-              <span>Reading note</span>
-              <span>Checking image</span>
-              <span>Preparing review</span>
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            Estimate nutrition
+          </button>
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              disabled={estimatePending}
+              onClick={() => {
+                foundRef.current = true;
+                onReview(
+                  unmatchedBarcode
+                    ? blankScannedFood(unmatchedBarcode)
+                    : blankManualFood(),
+                );
+              }}
+              className="pressable flex h-10 items-center justify-center gap-2 rounded-[8px] border border-[var(--line)] px-4 text-sm font-semibold text-[var(--foreground)] disabled:opacity-60"
+            >
+              <Utensils className="h-4 w-4" />
+              Type manually
+            </button>
+            <button
+              type="button"
+              disabled={estimatePending}
+              onClick={resetToScanner}
+              className="pressable flex h-10 items-center justify-center gap-2 rounded-[8px] border border-[var(--line)] px-4 text-sm font-semibold text-[var(--muted)] disabled:opacity-60"
+            >
+              <ScanBarcode className="h-4 w-4" />
+              Scan instead
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => openEstimatePanel()}
+            className="scan-choice motion-stagger mt-4 flex w-full items-center gap-3 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-3 text-left shadow-[0_12px_34px_oklch(28%_0.03_120_/_0.08)]"
+            style={staggerStyle(1)}
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">No barcode? Use AI estimate</span>
+              <span className="mt-0.5 block text-xs leading-5 text-[var(--muted)]">
+                Add a note or photo, then review nutrition before saving.
+              </span>
+            </span>
+          </button>
+
+          <div className="motion-card relative mt-4 h-[min(52svh,520px)] min-h-[330px] overflow-hidden rounded-[8px] bg-[var(--foreground)]">
+            <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
+            <div className="scanner-frame absolute inset-x-5 top-1/2 h-32 -translate-y-1/2 rounded-[8px] border-2 border-[oklch(96%_0.02_90)] sm:inset-x-6 sm:h-36" />
+            <div className="scanner-status absolute bottom-4 left-4 right-4 rounded-[8px] bg-[oklch(98%_0.01_86_/_0.94)] p-4">
+              <p className="text-sm font-semibold">{status}</p>
+              {pending ? (
+                <div className="mt-3">
+                  <div className="mb-2 flex items-center gap-2 text-xs text-[var(--muted)]">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Checking Open Food Facts
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[oklch(88%_0.02_126)]">
+                    <div className="scanner-line h-full w-1/2 rounded-full bg-[var(--accent)]" />
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
-        ) : null}
-        {estimateError ? (
-          <p className="motion-error mt-3 text-sm text-[var(--danger)]">
-            {estimateError}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          disabled={estimatePending}
-          onClick={() => void estimateFood()}
-          className="pressable mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--foreground)] px-4 text-sm font-semibold text-[var(--surface)] disabled:opacity-60"
-        >
-          {estimatePending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          Estimate and review
-        </button>
-        <button
-          type="button"
-          disabled={estimatePending}
-          onClick={() => {
-            controlsRef.current?.stop();
-            foundRef.current = true;
-            onReview(blankManualFood());
-          }}
-          className="pressable mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-[8px] border border-[var(--line)] px-4 text-sm font-semibold text-[var(--foreground)] disabled:opacity-60"
-        >
-          <Utensils className="h-4 w-4" />
-          Enter without estimate
-        </button>
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1019,7 +1162,7 @@ function ReviewSheet({
 
   return (
     <div className="motion-sheet-backdrop fixed inset-0 z-50 flex items-end justify-center bg-[oklch(18%_0.02_80_/_0.42)] p-3 sm:items-center">
-      <div className="motion-sheet w-full max-w-lg rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[0_28px_80px_oklch(20%_0.02_80_/_0.28)]">
+      <div className="motion-sheet max-h-[calc(100svh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-[8px] border border-[var(--line)] bg-[var(--surface)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_28px_80px_oklch(20%_0.02_80_/_0.28)] sm:pb-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">

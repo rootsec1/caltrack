@@ -234,6 +234,49 @@ a:focus-visible {
   animation: status-rise 260ms var(--ease-out-quart) both;
 }
 
+.scanner-line {
+  animation: scanner-line 1150ms var(--ease-out-quart) infinite alternate;
+}
+
+.scan-choice {
+  overflow: hidden;
+  position: relative;
+  transition:
+    border-color 180ms ease,
+    box-shadow 220ms var(--ease-out-quart),
+    transform 180ms var(--ease-out-quart);
+}
+
+.scan-choice::after {
+  background: linear-gradient(90deg, transparent, oklch(96% 0.04 145 / 0.48), transparent);
+  content: "";
+  inset: 0 auto 0 -45%;
+  pointer-events: none;
+  position: absolute;
+  transform: skewX(-16deg);
+  width: 35%;
+}
+
+.scan-choice:hover::after {
+  animation: choice-sheen 620ms var(--ease-out-quart) both;
+}
+
+.estimate-panel {
+  animation: estimate-panel-in 300ms var(--ease-out-expo) both;
+}
+
+.estimate-step {
+  animation: estimate-step 900ms var(--ease-out-quart) infinite alternate;
+}
+
+.estimate-step:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.estimate-step:nth-child(3) {
+  animation-delay: 240ms;
+}
+
 .success-pulse {
   animation: success-pulse 520ms var(--ease-out-expo) both;
 }
@@ -410,6 +453,44 @@ svg {
   100% {
     opacity: 0;
     transform: translateY(92px);
+  }
+}
+
+@keyframes scanner-line {
+  from {
+    transform: translateX(-80%);
+  }
+  to {
+    transform: translateX(180%);
+  }
+}
+
+@keyframes choice-sheen {
+  from {
+    transform: translateX(0) skewX(-16deg);
+  }
+  to {
+    transform: translateX(420%) skewX(-16deg);
+  }
+}
+
+@keyframes estimate-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes estimate-step {
+  from {
+    color: var(--muted);
+  }
+  to {
+    color: var(--foreground);
   }
 }
 

@@ -33,7 +33,7 @@ The input model is intentionally small: barcode scan first, estimate or manual f
 - Barcode scanning with `@zxing/browser` and an opportunistic native `BarcodeDetector` fast path.
 - Open Food Facts lookup with product images and normalized calories, protein, carbs, and fat.
 - Gemini-powered no-barcode estimates from a short note and optional transient food photo.
-- `product_cache` stores barcode nutrition data so repeat scans do not call the public API again.
+- `product_cache` stores barcode nutrition data and clean misses so repeat scans do not call the public API again.
 - Better Auth email/password accounts with Drizzle-backed users and sessions.
 - SQLite-compatible libSQL file for local development, Turso/libSQL for low-cost production on Vercel.
 - Mobile-first dashboard with daily totals, macro tiles, weekly history, timeline, and floating scan action.
