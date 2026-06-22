@@ -99,7 +99,7 @@ a:focus-visible {
   z-index: 0;
 }
 
-.motion-app-bg > * {
+.motion-app-bg > .motion-shell {
   position: relative;
   z-index: 1;
 }

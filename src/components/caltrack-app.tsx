@@ -732,6 +732,7 @@ function ScanView({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
+  const lookupTimeoutRef = useRef<number | undefined>(undefined);
   const foundRef = useRef(false);
   const [status, setStatus] = useState("Hold the barcode flat inside the frame.");
   const [pending, setPending] = useState(false);
@@ -740,28 +741,47 @@ function ScanView({
     async (barcode: string) => {
       if (foundRef.current) return;
       foundRef.current = true;
+      const controller = new AbortController();
+      let finished = false;
+      const finishLookup = (food: ReviewFood, message?: string) => {
+        if (finished) return;
+        finished = true;
+        if (lookupTimeoutRef.current) {
+          window.clearTimeout(lookupTimeoutRef.current);
+          lookupTimeoutRef.current = undefined;
+        }
+        if (message) setStatus(message);
+        setPending(false);
+        onReview(food);
+      };
+
       setPending(true);
       setStatus(`Found ${barcode}. Looking up nutrition.`);
       controlsRef.current?.stop();
+      lookupTimeoutRef.current = window.setTimeout(() => {
+        controller.abort();
+        finishLookup(blankScannedFood(barcode), "Lookup timed out. Fill in the label details.");
+      }, 10000);
+
       try {
-        const { product } = await apiJson<{ product: ReviewFood | null }>(
-          "/api/food/lookup",
-          {
-            method: "POST",
-            body: JSON.stringify({ barcode }),
-          },
-        );
+        const { product } = await apiJson<{ product: ReviewFood | null }>("/api/food/lookup", {
+          method: "POST",
+          signal: controller.signal,
+          body: JSON.stringify({ barcode }),
+        });
         if (!product) {
-          setStatus("No product match found. Fill in the label details.");
-          onReview(blankScannedFood(barcode));
+          finishLookup(blankScannedFood(barcode), "No product match found. Fill in the label details.");
           return;
         }
-        onReview(product);
+        finishLookup(product);
       } catch (error) {
-        setStatus(error instanceof Error ? error.message : "Lookup failed. Fill in the details.");
-        onReview(blankScannedFood(barcode));
-      } finally {
-        setPending(false);
+        const message =
+          error instanceof DOMException && error.name === "AbortError"
+            ? "Lookup timed out. Fill in the label details."
+            : error instanceof Error
+              ? error.message
+              : "Lookup failed. Fill in the details.";
+        finishLookup(blankScannedFood(barcode), message);
       }
     },
     [onReview],
@@ -839,6 +859,7 @@ function ScanView({
     return () => {
       stopped = true;
       window.clearInterval(nativeTimer);
+      if (lookupTimeoutRef.current) window.clearTimeout(lookupTimeoutRef.current);
       controlsRef.current?.stop();
     };
   }, [lookupBarcode]);

@@ -15,6 +15,8 @@ const requestSchema = z.object({
   barcode: z.string().trim().min(6).max(32),
 });
 
+const openFoodFactsTimeoutMs = 8000;
+
 function productFromCache(cached: typeof productCache.$inferSelect) {
   if (cached.calories > 0) {
     return {
@@ -60,26 +62,42 @@ export async function POST(request: Request) {
   const userAgent =
     process.env.OPENFOODFACTS_USER_AGENT ??
     "Caltrack/1.0 (configure OPENFOODFACTS_USER_AGENT)";
-  const response = await fetch(
-    `https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(
-      barcode,
-    )}.json`,
-    {
-      headers: {
-        "User-Agent": userAgent,
-        Accept: "application/json",
-      },
-    },
-  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), openFoodFactsTimeoutMs);
+  let response: Response;
+  let data: { product?: Parameters<typeof normalizeOpenFoodFactsProduct>[1] };
 
-  if (!response.ok) {
-    return Response.json(
-      { error: "Open Food Facts is unavailable right now." },
-      { status: 502 },
+  try {
+    response = await fetch(
+      `https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(
+        barcode,
+      )}.json`,
+      {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": userAgent,
+          Accept: "application/json",
+        },
+      },
     );
+
+    if (!response.ok) {
+      return Response.json(
+        { error: "Open Food Facts is unavailable right now." },
+        { status: 502 },
+      );
+    }
+
+    data = await response.json();
+  } catch {
+    return Response.json(
+      { error: "Open Food Facts lookup timed out. Fill in the details." },
+      { status: 504 },
+    );
+  } finally {
+    clearTimeout(timeout);
   }
 
-  const data = await response.json();
   const normalized = normalizeOpenFoodFactsProduct(barcode, data.product ?? {});
 
   if (!normalized) {
