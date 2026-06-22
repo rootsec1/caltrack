@@ -2,6 +2,8 @@
 
 import {
   BarChart3,
+  BookOpen,
+  CalendarDays,
   Check,
   ChevronLeft,
   Flame,
@@ -11,9 +13,17 @@ import {
   Trash2,
   Utensils,
 } from "lucide-react";
-import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FoodAvatar } from "@/components/food-avatar";
 import { authClient } from "@/lib/auth-client";
+import {
+  endOfLocalDay,
+  groupLogsByWeek,
+  localDayKey,
+  startOfLocalDay,
+  summarizeNutrition,
+} from "@/lib/ledger";
 
 type Source = "barcode" | "manual";
 
@@ -56,46 +66,10 @@ declare global {
   }
 }
 
-function startOfLocalDay(date = new Date()) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function endOfLocalDay(date = new Date()) {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    23,
-    59,
-    59,
-    999,
-  );
-}
-
 function formatNumber(value: number, decimals = 0) {
   return new Intl.NumberFormat("en-US", {
     maximumFractionDigits: decimals,
   }).format(value);
-}
-
-function localDayKey(value: string | Date) {
-  const date = value instanceof Date ? value : new Date(value);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function summarize(logs: Pick<FoodLog, "calories" | "protein" | "carbs" | "fat">[]) {
-  return logs.reduce(
-    (total, log) => ({
-      calories: total.calories + log.calories,
-      protein: total.protein + log.protein,
-      carbs: total.carbs + log.carbs,
-      fat: total.fat + log.fat,
-    }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
-  );
 }
 
 function staggerStyle(index: number): MotionStyle {
@@ -289,7 +263,7 @@ function SavedToast() {
   );
 }
 
-function LoadingScreen() {
+export function LoadingScreen() {
   return (
     <main className="grid min-h-screen place-items-center bg-[var(--background)]">
       <div className="motion-pop flex items-center gap-3 text-sm font-medium text-[var(--muted)]">
@@ -300,7 +274,7 @@ function LoadingScreen() {
   );
 }
 
-function AuthPanel() {
+export function AuthPanel() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -499,7 +473,7 @@ function Dashboard({
   onScan: () => void;
   onDelete: (id: string) => Promise<void>;
 }) {
-  const totals = useMemo(() => summarize(logs), [logs]);
+  const totals = useMemo(() => summarizeNutrition(logs), [logs]);
   const [rangeAnchor] = useState(() => Date.now());
   const weekByDay = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, index) => {
@@ -550,9 +524,18 @@ function Dashboard({
       <section className="motion-stagger mt-6" style={staggerStyle(3)}>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold tracking-normal">Last 7 days</h2>
-          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
-            Calories
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="hidden text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)] sm:inline">
+              Calories
+            </span>
+            <Link
+              href="/ledger"
+              className="pressable inline-flex h-9 items-center justify-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-xs font-semibold text-[var(--foreground)]"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Ledger
+            </Link>
+          </div>
         </div>
         <div className="grid h-28 grid-cols-7 items-end gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 pb-3 pt-4">
           {weekByDay.map((day, index) => (
@@ -692,34 +675,6 @@ function TimelineRow({
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
       </button>
     </article>
-  );
-}
-
-function FoodAvatar({
-  log,
-}: {
-  log: Pick<FoodLog, "imageUrl" | "itemName" | "source">;
-}) {
-  const [failed, setFailed] = useState(false);
-  const imageUrl = failed ? null : log.imageUrl;
-
-  return (
-    <div className="food-thumb grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[8px] bg-[var(--surface-strong)]">
-      {imageUrl ? (
-        <Image
-          src={imageUrl}
-          alt=""
-          width={48}
-          height={48}
-          unoptimized
-          loading="lazy"
-          onError={() => setFailed(true)}
-          className="h-full w-full object-contain p-0.5"
-        />
-      ) : (
-        <ScanBarcode className="h-5 w-5" />
-      )}
-    </div>
   );
 }
 
@@ -1107,16 +1062,20 @@ function DesktopJournal({
   logs: FoodLog[];
   todayLogs: FoodLog[];
 }) {
-  const totals = summarize(todayLogs);
-  const recent = logs.slice(0, 8);
+  const totals = summarizeNutrition(todayLogs);
+  const weeks = useMemo(() => groupLogsByWeek(logs).slice(0, 3), [logs]);
   return (
     <aside className="desktop-panel hidden min-h-screen bg-[oklch(91.5%_0.018_150)] p-10 lg:block">
       <div className="sticky top-10">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-semibold tracking-normal">Nutrition ledger</h2>
-          <div className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-sm font-semibold">
-            Today
-          </div>
+          <Link
+            href="/ledger"
+            className="pressable inline-flex h-10 items-center gap-2 rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-3 text-sm font-semibold"
+          >
+            <BookOpen className="h-4 w-4" />
+            Full ledger
+          </Link>
         </div>
         <div className="grid grid-cols-4 gap-3">
           <DesktopMetric label="Calories" value={formatNumber(totals.calories)} index={0} />
@@ -1125,34 +1084,56 @@ function DesktopJournal({
           <DesktopMetric label="Fat" value={`${formatNumber(totals.fat, 1)}g`} index={3} />
         </div>
         <div className="mt-8 rounded-[8px] border border-[var(--line)] bg-[var(--surface)]">
-          <div className="grid grid-cols-[1fr_110px_110px] border-b border-[var(--line)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
-            <span>Item</span>
-            <span>Macros</span>
-            <span className="text-right">Calories</span>
+          <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--muted)]">
+            <span>Recent weeks</span>
+            <span>Calories</span>
           </div>
-          {recent.length ? (
-            recent.map((log, index) => (
+          {weeks.length ? (
+            weeks.map((week, weekIndex) => (
               <div
-                key={log.id}
-                className="motion-stagger grid grid-cols-[1fr_110px_110px] items-center border-b border-[var(--line)] px-4 py-4 last:border-b-0"
-                style={staggerStyle(index)}
+                key={week.key}
+                className="motion-stagger border-b border-[var(--line)] px-4 py-4 last:border-b-0"
+                style={staggerStyle(weekIndex)}
               >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">{log.itemName}</div>
-                  <div className="mt-1 text-xs text-[var(--muted)]">
-                    {localDayKey(log.loggedAt)} · {log.source}
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-[var(--muted)]" />
+                    <span className="text-sm font-semibold">{week.label}</span>
                   </div>
+                  <span className="text-sm font-semibold">
+                    {formatNumber(week.total.calories)}
+                  </span>
                 </div>
-                <div className="text-xs leading-5 text-[var(--muted)]">
-                  P {formatNumber(log.protein, 1)} · C {formatNumber(log.carbs, 1)} · F{" "}
-                  {formatNumber(log.fat, 1)}
+                <div className="space-y-3">
+                  {week.days.slice(0, 4).map((day) => (
+                    <div key={day.key}>
+                      <div className="mb-2 flex items-center justify-between text-xs text-[var(--muted)]">
+                        <span>{day.label}</span>
+                        <span>{formatNumber(day.total.calories)} cal</span>
+                      </div>
+                      <div className="space-y-2">
+                        {day.logs.slice(0, 2).map((log) => (
+                          <div key={log.id} className="grid grid-cols-[48px_1fr_auto] items-center gap-3">
+                            <FoodAvatar log={log} />
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold">{log.itemName}</div>
+                              <div className="text-xs text-[var(--muted)]">
+                                P {formatNumber(log.protein, 1)} · C{" "}
+                                {formatNumber(log.carbs, 1)} · F {formatNumber(log.fat, 1)}
+                              </div>
+                            </div>
+                            <div className="text-sm font-semibold">{formatNumber(log.calories)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="text-right text-lg font-semibold">{formatNumber(log.calories)}</div>
               </div>
             ))
           ) : (
             <div className="p-8 text-sm text-[var(--muted)]">
-              The desktop view fills in as food gets logged from the mobile scanner.
+              Weekly history fills in as food gets logged from the scanner.
             </div>
           )}
         </div>
